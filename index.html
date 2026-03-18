@@ -689,7 +689,8 @@ header{
 ══════════════════════════════ -->
 <div id="pg-law" class="full-page">
   <div class="fp-header">
-    <div class="fp-back" onclick="showPage('portal')">← 포털 홈</div>
+    <div class="fp-back" onclick="history.back()">← 뒤로</div>
+    <div class="fp-back" onclick="showPage('portal')" style="margin-left:4px">🏠 포털 홈</div>
     <div class="fp-title law">⚖️ LawDesk</div>
   </div>
   <div class="law-full-layout">
@@ -776,12 +777,11 @@ const COST_LBL = {cargo:'화물금액',export:'수출지 비용',freight:'해상
 let selTerm = 'FOB';
 
 /* ═══ PAGE ROUTING ═══ */
-// physai, inco → 별도 HTML 파일로 이동 / law → 포털 내 페이지
 const EXTERNAL_PAGES = {
   physai: 'physical_ai_news.html',
   inco:   'incoterms-calculator.html',
 };
-function showPage(id) {
+function showPage(id, pushState=true) {
   if (EXTERNAL_PAGES[id]) {
     window.location.href = EXTERNAL_PAGES[id];
     return;
@@ -791,7 +791,15 @@ function showPage(id) {
   document.getElementById('pg-'+id).classList.add('active');
   document.querySelector(`.hdr-nav-item[data-page="${id}"]`).classList.add('active');
   window.scrollTo(0,0);
+  if(pushState) history.pushState({page:id}, '', '#'+id);
 }
+// 브라우저 뒤로/앞으로 버튼 대응
+window.addEventListener('popstate', e => {
+  const id = e.state?.page || 'portal';
+  showPage(id, false);
+});
+// 최초 진입 시 portal 상태 등록
+history.replaceState({page:'portal'}, '', '#portal');
 
 /* ═══ CLOCK ═══ */
 function updateClock(){
