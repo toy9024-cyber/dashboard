@@ -1196,6 +1196,13 @@ async function loadExRate(){
 
   const WORKER_URL = "https://koreaexim-proxy.toy9024.workers.dev";
   const EXIM_CODES = {USD:"USD", EUR:"EUR", CNY:"CNY", JPY:"JPY(100)"};
+  // 수출입은행 API는 cur_unit에 공백이 붙거나 (100) 표기가 다를 수 있어 유연하게 매칭
+  function matchCurUnit(curUnit, code) {
+    const u = (curUnit || "").trim().toUpperCase();
+    if (code === "JPY") return u === "JPY(100)" || u === "JPY" || u.startsWith("JPY");
+    if (code === "CNY") return u === "CNY" || u === "CNY(100)" || u.startsWith("CNY");
+    return u === code;
+  }
 
   let data     = null;
   let srcLabel = "";
@@ -1228,8 +1235,7 @@ async function loadExRate(){
   if(data){
     let found = 0;
     FX_CURRENCIES.forEach(f => {
-      const eimCode = EXIM_CODES[f.code];
-      const item = data.find(d => d.cur_unit === eimCode);
+      const item = data.find(d => matchCurUnit(d.cur_unit, f.code));
       const el   = document.getElementById("fx-" + f.code);
       if(!item || !el) return;
 
@@ -1267,7 +1273,7 @@ async function loadExRate(){
       {code:"USD", itemCode:"0000001", jpyMul:false},
       {code:"JPY", itemCode:"0000002", jpyMul:true},
       {code:"EUR", itemCode:"0000003", jpyMul:false},
-      {code:"CNY", itemCode:"0000401", jpyMul:false},
+      {code:"CNY", itemCode:"0000004", jpyMul:false},
     ];
     const d2 = new Date(dateStr);
     const dFrom = new Date(d2); dFrom.setDate(d2.getDate()-5);
