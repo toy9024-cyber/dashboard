@@ -527,14 +527,14 @@ header{
   <div class="portal-grid">
 
     <!-- PhysAI News 카드 -->
-    <div class="app-card physai" onclick="showPage('physai')">
+    <div class="app-card physai" onclick="location.href='physical_ai_news.html'">
       <div class="ac-header">
         <div class="ac-icon">🤖</div>
         <div class="ac-info">
           <div class="ac-name">PhysAI News</div>
           <div class="ac-desc">Physical AI · 물류자동화 업계 동향 · 전시회 일정</div>
         </div>
-        <div class="ac-launch" onclick="event.stopPropagation();showPage('physai')">열기 →</div>
+        <div class="ac-launch" onclick="event.stopPropagation();location.href='physical_ai_news.html'">열기 →</div>
       </div>
       <div class="ac-body">
         <div class="sparkline-wrap" id="homeSparklines"></div>
@@ -546,14 +546,14 @@ header{
     </div>
 
     <!-- Incoterms 카드 -->
-    <div class="app-card inco" onclick="showPage('inco')">
+    <div class="app-card inco" onclick="location.href='incoterms-calculator.html'">
       <div class="ac-header">
         <div class="ac-icon">📦</div>
         <div class="ac-info">
           <div class="ac-name">Incoterms 2020</div>
           <div class="ac-desc">무역 조건별 비용 분담 계산 및 조건 비교</div>
         </div>
-        <div class="ac-launch" onclick="event.stopPropagation();showPage('inco')">열기 →</div>
+        <div class="ac-launch" onclick="event.stopPropagation();location.href='incoterms-calculator.html'">열기 →</div>
       </div>
       <div class="ac-body">
         <div class="inco-quick" id="homeIncoQuick"></div>
@@ -776,7 +776,16 @@ const COST_LBL = {cargo:'화물금액',export:'수출지 비용',freight:'해상
 let selTerm = 'FOB';
 
 /* ═══ PAGE ROUTING ═══ */
+// physai, inco → 별도 HTML 파일로 이동 / law → 포털 내 페이지
+const EXTERNAL_PAGES = {
+  physai: 'physical_ai_news.html',
+  inco:   'incoterms-calculator.html',
+};
 function showPage(id) {
+  if (EXTERNAL_PAGES[id]) {
+    window.location.href = EXTERNAL_PAGES[id];
+    return;
+  }
   document.querySelectorAll('.full-page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.hdr-nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('pg-'+id).classList.add('active');
@@ -835,7 +844,7 @@ function renderActivity(){
     {app:'physai',time:'어제 10:05',title:'국토교통부 입법예고 뉴스'},
   ];
   document.getElementById('activityGrid').innerHTML=acts.map(a=>`
-    <div class="act-item" onclick="showPage('${a.app}')">
+    <div class="act-item" onclick="${a.app==='physai'?`location.href='physical_ai_news.html'`:a.app==='inco'?`location.href='incoterms-calculator.html'`:`showPage('${a.app}')`}">
       <div class="act-time">${a.time}</div>
       <div class="act-app ${a.app}">${a.app==='physai'?'PhysAI':a.app==='inco'?'Incoterms':'LawDesk'}</div>
       <div class="act-title">${a.title}</div>
@@ -1040,8 +1049,8 @@ async function doAiSearch(){
 /* ═══ CROSS LINKS ═══ */
 function crossLink(type){
   if(type==='physai-law'){toast('🔄 규제 뉴스 → LawDesk로 이동');setTimeout(()=>{showPage('law');qs('물류시설')},400)}
-  else if(type==='law-news'){toast('🔄 법령 → PhysAI 뉴스로 이동');setTimeout(()=>showPage('physai'),400)}
-  else if(type==='inco-calc'){showPage('inco');setTimeout(()=>calcIncoFull(),300)}
+  else if(type==='law-news'){toast('🔄 법령 → PhysAI 뉴스로 이동');setTimeout(()=>location.href='physical_ai_news.html',400)}
+  else if(type==='inco-calc'){location.href='incoterms-calculator.html'}
 }
 
 /* ═══ TOAST ═══ */
