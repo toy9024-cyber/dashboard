@@ -964,57 +964,109 @@ function calcIncoFull(){
   toast(`${selTerm} (${term.name}) 계산 완료`);
 }
 
+/* ═══ GAS API 연결 ═══ */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwOHDRrOYbm3eQfTtup3opbF_cyrLM03MsU7yGGfbMrSM1bHgK7iZoZ9s4shMVm3yeb8Q/exec';
+function gasCall(params){
+  return new Promise((resolve,reject)=>{
+    const cb='_gas_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const qs=new URLSearchParams({...params,callback:cb}).toString();
+    const s=document.createElement('script');
+    window[cb]=data=>{ resolve(data); delete window[cb]; s.remove(); };
+    s.onerror=()=>{ reject(new Error('GAS 호출 실패')); delete window[cb]; s.remove(); };
+    s.src=`${GAS_URL}?${qs}`;
+    document.head.appendChild(s);
+    setTimeout(()=>{ if(window[cb]){ reject(new Error('타임아웃')); delete window[cb]; s.remove(); }},15000);
+  });
+}
+
 /* ═══ LAWDESK ═══ */
+const tc={법률:'tp-l',대통령령:'tp-d',규칙:'tp-r',고시:'tp-r',훈령:'tp-r',예규:'tp-r'};
+
 function renderLawCards(list, q=''){
-  const tc={법률:'tp-l',대통령령:'tp-d',규칙:'tp-r',고시:'tp-r'};
-  const hl=t=>q?t.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),`<mark style="background:rgba(168,85,247,0.2);color:var(--law);border-radius:2px">${q}</mark>`):t;
+  if(!list||!list.length){
+    document.getElementById('lawCardsFull').innerHTML=
+      `<div style="padding:32px;text-align:center;color:var(--steel3);font-size:12px">검색 결과가 없습니다</div>`;
+    return;
+  }
+  const hl=t=>q?t.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),
+    `<mark style="background:rgba(168,85,247,0.2);color:var(--law);border-radius:2px">${q}</mark>`):t;
   document.getElementById('lawCardsFull').innerHTML=list.map(l=>`
     <div class="law-card-full" onclick="openLaw('${l.id}')">
       <div class="lcf-head">
-        <span class="type-pill ${tc[l.type]||'tp-r'}">${l.type}</span>
+        <span class="type-pill ${tc[l.type]||'tp-r'}">${l.type||''}</span>
         <span class="lcf-title">${hl(l.title)}</span>
       </div>
-      <div class="lcf-meta"><span>📁 ${l.ministry}</span><span>📋 ${l.lawNo}</span><span>🔄 ${l.amended}</span></div>
-      <div class="lcf-summary">${hl(l.summary)}</div>
+      <div class="lcf-meta"><span>📁 ${l.ministry||''}</span><span>📋 ${l.lawNo||''}</span><span>🔄 ${l.amended||''}</span></div>
+      <div class="lcf-summary">${hl(l.summary||'')}</div>
       <div class="lcf-actions">
         <button class="btn-lcf pri" onclick="event.stopPropagation();openLaw('${l.id}')">📖 전문 보기</button>
-        <button class="btn-lcf" onclick="event.stopPropagation();toast('⭐ 즐겨찾기 추가')">⭐</button>
-        <button class="btn-lcf" onclick="event.stopPropagation();toast('📄 PDF 저장')">📄</button>
-        <button class="btn-lcf" onclick="event.stopPropagation();toast('🔗 링크 복사')">🔗</button>
+        <button class="btn-lcf" onclick="event.stopPropagation();favToggle('${l.id}','${l.title}','${l.type||''}','${l.ministry||''}','${l.amended||''}')">⭐ 즐겨찾기</button>
+        <button class="btn-lcf" onclick="event.stopPropagation();copyLawLink('${l.id}')">🔗 공유</button>
       </div>
     </div>`).join('');
 }
-function doLawSearch(){
+
+async function doLawSearch(){
   const q=document.getElementById('lawInp').value.trim();
-  const res=q?LAWS.filter(l=>l.title.includes(q)||l.summary.includes(q)||l.cats.some(c=>c.includes(q))):LAWS;
-  renderLawCards(res,q);
+  if(!q){ renderLawCards(LAWS); return; }
+  const el=document.getElementById('lawCardsFull');
+  el.innerHTML=`<div style="padding:24px;text-align:center;color:var(--steel3);font-size:12px">🔍 검색 중...</div>`;
+  try{
+    const res=await gasCall({action:'search',q});
+    if(res.ok && res.laws && res.laws.length){
+      renderLawCards(res.laws, q);
+    } else {
+      // GAS 실패시 Mock 데이터 폴백
+      const mock=LAWS.filter(l=>l.title.includes(q)||l.summary.includes(q)||(l.cats||[]).some(c=>c.includes(q)));
+      renderLawCards(mock, q);
+    }
+  } catch(e){
+    const mock=LAWS.filter(l=>l.title.includes(q)||l.summary.includes(q)||(l.cats||[]).some(c=>c.includes(q)));
+    renderLawCards(mock, q);
+    toast('⚠️ API 연결 중... 기본 데이터로 표시합니다');
+  }
 }
+
 function qs(q){
   document.getElementById('lawInp').value=q;
   doLawSearch();
 }
-function openLaw(id){
-  const law=LAWS.find(l=>l.id===id);
-  if(!law) return;
+
+async function openLaw(id){
   const box=document.getElementById('lawViewerFull');
   box.classList.add('show');
+  box.innerHTML=`<div style="padding:32px;text-align:center;color:var(--steel3)">📖 법령 불러오는 중...</div>`;
+  box.scrollIntoView({behavior:'smooth'});
+
+  // Mock 데이터 우선 표시
+  const mock=LAWS.find(l=>l.id===id);
+  if(mock) renderLawViewer(mock);
+
+  // GAS에서 실제 조문 조회
+  try{
+    const res=await gasCall({action:'detail',lawId:id});
+    if(res.ok) renderLawViewerFromGAS(res);
+  } catch(e){ /* mock으로 유지 */ }
+}
+
+function renderLawViewer(law){
+  const box=document.getElementById('lawViewerFull');
   box.innerHTML=`
     <div class="lv-hd">
       <span class="lv-ttl">${law.title}</span>
       <div style="display:flex;gap:4px">
-        <div class="lv-act-btn" onclick="toast('⭐ 즐겨찾기')">⭐</div>
-        <div class="lv-act-btn" onclick="toast('🔔 개정 알림 구독')">🔔</div>
-        <div class="lv-act-btn" onclick="toast('📄 PDF')">📄</div>
-        <div class="lv-act-btn" onclick="toast('🔗 공유')">🔗</div>
+        <div class="lv-act-btn" onclick="favToggle('${law.id}','${law.title}','${law.type||''}','${law.ministry||''}','${law.amended||''}')" title="즐겨찾기">⭐</div>
+        <div class="lv-act-btn" onclick="subToggle('${law.id}','${law.title}','${law.amended||''}')" title="개정 알림">🔔</div>
+        <div class="lv-act-btn" onclick="copyLawLink('${law.id}')" title="공유">🔗</div>
         <div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div>
       </div>
     </div>
-    <div class="lv-meta-bar"><span>🏛 ${law.ministry}</span><span>📋 ${law.lawNo}</span><span>🔄 ${law.amended} 최종개정</span></div>
+    <div class="lv-meta-bar"><span>🏛 ${law.ministry||''}</span><span>📋 ${law.lawNo||''}</span><span>🔄 ${law.amended||''} 최종개정</span></div>
     <div class="lv-content">
-      ${law.chapters.map(ch=>`
+      ${(law.chapters||[]).map(ch=>`
         <div style="margin-bottom:16px">
           <div style="font-family:var(--cond);font-size:12px;font-weight:700;color:var(--law);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(168,85,247,0.2)">${ch.title}</div>
-          ${ch.articles.map(a=>`
+          ${(ch.articles||[]).map(a=>`
             <div class="lv-article">
               <div class="lv-art-num">${a.num}</div>
               <div class="lv-art-title">${a.title}</div>
@@ -1022,20 +1074,84 @@ function openLaw(id){
             </div>`).join('')}
         </div>`).join('')}
     </div>`;
-  box.scrollIntoView({behavior:'smooth'});
+}
+
+function renderLawViewerFromGAS(res){
+  // GAS에서 받은 실제 조문 데이터로 뷰어 업데이트
+  const box=document.getElementById('lawViewerFull');
+  const articles=res.articles||[];
+  box.innerHTML=`
+    <div class="lv-hd">
+      <span class="lv-ttl">${res.title||''}</span>
+      <div style="display:flex;gap:4px">
+        <div class="lv-act-btn" onclick="favToggle('${res.id}','${res.title}','','${res.ministry||''}','${res.amended||''}')" title="즐겨찾기">⭐</div>
+        <div class="lv-act-btn" onclick="subToggle('${res.id}','${res.title}','${res.amended||''}')" title="개정 알림">🔔</div>
+        <div class="lv-act-btn" onclick="copyLawLink('${res.id}')" title="공유">🔗</div>
+        <div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div>
+      </div>
+    </div>
+    <div class="lv-meta-bar">
+      <span>🏛 ${res.ministry||''}</span>
+      <span>📋 ${res.lawNo||''}</span>
+      <span>📅 시행 ${res.effDate||''}</span>
+      <span>🔄 ${res.amended||''} 최종개정</span>
+    </div>
+    <div class="lv-content">
+      ${articles.map(a=>`
+        <div class="lv-article">
+          <div class="lv-art-num">${a.num||''}</div>
+          <div class="lv-art-title">${a.title||''}</div>
+          <div class="lv-art-body">${a.body||''}</div>
+          ${(a.subs||[]).map(s=>`<div style="font-size:11px;color:var(--steel3);padding-left:14px;line-height:1.8;margin-top:4px">· ${s}</div>`).join('')}
+        </div>`).join('')}
+    </div>`;
+}
+
+// 즐겨찾기 토글
+async function favToggle(id,title,type,ministry,amended){
+  try{
+    const favs=JSON.parse(localStorage.getItem('ld_favs')||'[]');
+    const idx=favs.findIndex(f=>f.id===id);
+    if(idx>=0){
+      favs.splice(idx,1);
+      toast('즐겨찾기에서 제거했습니다');
+      await gasCall({action:'del_fav',lawId:id});
+    } else {
+      favs.push({id,title,type,ministry,amended});
+      toast('⭐ 즐겨찾기에 추가했습니다');
+      await gasCall({action:'save_fav',lawId:id,title,type,ministry,amended});
+    }
+    localStorage.setItem('ld_favs',JSON.stringify(favs));
+    renderFavListFull();
+  } catch(e){ toast('즐겨찾기 저장 중 오류'); }
+}
+
+// 개정 알림 구독 토글
+async function subToggle(id,title,amended){
+  try{
+    await gasCall({action:'save_sub',lawId:id,title,lastAmended:amended});
+    toast('🔔 개정 알림 구독 시작 — 개정시 알림함에 표시됩니다');
+  } catch(e){ toast('구독 설정 중 오류'); }
+}
+
+// 공유 링크 복사
+function copyLawLink(id){
+  const url=`https://www.law.go.kr/법령/${id}`;
+  navigator.clipboard?.writeText(url).catch(()=>{});
+  toast('🔗 법령 링크가 복사됐습니다');
 }
 function renderFavListFull(){
-  const favs=[
-    {id:'L001',title:'산업안전보건법',amend:true,date:'2024-01'},
-    {id:'L006',title:'산업안전보건기준에 관한 규칙',amend:true,date:'2023-11'},
-    {id:'L005',title:'물류시설의 개발 및 운영에 관한 법률',amend:false,date:'2023-12'},
-    {id:'L003',title:'산업안전보건법 시행령',amend:false,date:'2023-08'},
-  ];
-  document.getElementById('favListFull').innerHTML=favs.map(f=>`
+  const favs=JSON.parse(localStorage.getItem('ld_favs')||'[]');
+  const el=document.getElementById('favListFull');
+  if(!favs.length){
+    el.innerHTML=`<div style="padding:12px 8px;font-size:11px;color:var(--steel3)">즐겨찾기한 법령이 없습니다</div>`;
+    return;
+  }
+  el.innerHTML=favs.map(f=>`
     <div class="fav-row" onclick="openLaw('${f.id}')">
-      <div class="fav-pip" style="background:${f.amend?'var(--red)':'var(--inco)'}"></div>
+      <div class="fav-pip" style="background:var(--inco)"></div>
       <span class="fav-name">${f.title}</span>
-      <span class="fav-date">${f.date}</span>
+      <span class="fav-date">${(f.amended||'').slice(0,7)}</span>
     </div>`).join('');
 }
 async function doAiSearch(){
@@ -1043,15 +1159,24 @@ async function doAiSearch(){
   if(!q) return;
   document.getElementById('aiLoader').classList.add('show');
   document.getElementById('aiResultFull').classList.remove('show');
-  await new Promise(r=>setTimeout(r,1600));
-  document.getElementById('aiLoader').classList.remove('show');
-  const related=LAWS.filter(l=>l.cats.some(c=>q.includes(c))||l.title.split('').some((ch,i)=>q.includes(l.title.slice(i,i+2)))).slice(0,2);
-  document.getElementById('aiResultFull').innerHTML=`
-    <span style="color:var(--accent);font-weight:600;font-size:11px">📎 AI 분석 결과</span><br><br>
-    "${q}" 관련 <strong style="color:var(--law)">${Math.max(related.length,1)}개</strong> 법령 검색됨.<br><br>
-    ${related.length?'주요 검토: '+related.map(l=>`<span style="color:var(--law);cursor:pointer" onclick="openLaw('${l.id}')">${l.title}</span>`).join(', ')+'.<br><br>':'' }
-    <span style="color:var(--steel3);font-size:10px">※ GAS + Claude API 연동 후 실제 해설 제공</span>`;
-  document.getElementById('aiResultFull').classList.add('show');
+  try{
+    const res=await gasCall({action:'ai_search',q});
+    document.getElementById('aiLoader').classList.remove('show');
+    const ai=res.ai||{};
+    const laws=res.laws||[];
+    document.getElementById('aiResultFull').innerHTML=`
+      <span style="color:var(--accent);font-weight:600;font-size:11px">📎 AI 분석 결과</span><br><br>
+      ${ai.summary||'관련 법령을 분석했습니다.'}<br><br>
+      ${ai.key_articles&&ai.key_articles.length?'<strong style="color:var(--steel2)">주요 조문:</strong><br>'+ai.key_articles.map(a=>`· ${a}`).join('<br>')+'<br><br>':''}
+      ${laws.length?'<strong style="color:var(--steel2)">관련 법령:</strong><br>'+laws.slice(0,3).map(l=>`<span style="color:var(--law);cursor:pointer" onclick="openLaw('${l.id}')">${l.title}</span>`).join(' · ')+'<br><br>':''}
+      ${ai.caution?`<span style="color:var(--accent);font-size:10px">⚠ ${ai.caution}</span>`:''}`;
+    document.getElementById('aiResultFull').classList.add('show');
+  } catch(e){
+    document.getElementById('aiLoader').classList.remove('show');
+    document.getElementById('aiResultFull').innerHTML=
+      `<span style="color:var(--steel3);font-size:11px">⚠️ AI 검색 연결 실패 — GAS 설정을 확인해주세요</span>`;
+    document.getElementById('aiResultFull').classList.add('show');
+  }
 }
 
 /* ═══ CROSS LINKS ═══ */
