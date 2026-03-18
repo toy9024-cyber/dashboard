@@ -276,7 +276,11 @@
 <div class="header">
   <div class="header-top">
     <h1>⚡ 피지컬 AI 뉴스 <span class="live-badge">LIVE</span></h1>
-    <button class="admin-btn" onclick="openAdmin()" title="관리자 설정">⚙️</button>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+      <button onclick="history.back()" style="padding:5px 11px;border-radius:6px;background:rgba(255,255,255,0.12);border:none;color:rgba(255,255,255,0.8);font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">← 뒤로</button>
+      <button onclick="location.href='index.html'" style="padding:5px 11px;border-radius:6px;background:rgba(232,184,75,0.85);border:none;color:#080c12;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">🏠 홈</button>
+      <button class="admin-btn" onclick="openAdmin()" title="관리자 설정">⚙️</button>
+    </div>
   </div>
   <div class="header-meta">
     <div class="last-update" id="last-update">불러오는 중...</div>
@@ -1876,10 +1880,5 @@ applyTheme(settings.theme, document.querySelector('[data-t="'+settings.theme+'"]
 applySettingsToDOM();
 loadNews();
 </script>
-<!-- 신강인테크 포털 네비게이션 -->
-<div id="portal-nav" style="position:fixed;top:0;left:0;z-index:99999;display:flex;gap:0;align-items:stretch">
-  <button onclick="history.back()" style="padding:7px 13px;background:rgba(13,21,32,0.88);backdrop-filter:blur(12px);border:none;border-right:1px solid rgba(200,216,232,0.15);border-bottom:1px solid rgba(200,216,232,0.15);color:#8fa5bc;font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s;border-radius:0 0 6px 0" onmouseover="this.style.color='#c8d8e8';this.style.background='rgba(13,21,32,0.97)'" onmouseout="this.style.color='#8fa5bc';this.style.background='rgba(13,21,32,0.88)'">← 뒤로</button>
-  <button onclick="location.href='index.html'" style="padding:7px 14px;background:rgba(232,184,75,0.9);backdrop-filter:blur(12px);border:none;border-bottom:1px solid rgba(232,184,75,0.4);color:#080c12;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;border-radius:0 0 6px 0" onmouseover="this.style.background='rgba(232,184,75,1)'" onmouseout="this.style.background='rgba(232,184,75,0.9)'">🏠 신강인테크</button>
-</div>
 </body>
 </html>
