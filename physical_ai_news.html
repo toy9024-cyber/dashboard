@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>⚡ 피지컬 AI 뉴스</title>
-<link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1154,9 +1153,9 @@ function printPDF(){
     +'<hr style="margin:18px 0">'+(a.content_ko||"").split("\n").filter(function(p){return p.trim();}).map(function(p){return"<p>"+p+"</p>";}).join("")
     +'<div class="footer">원문: <a href="'+a.url+'">'+a.url+'</a><br>피지컬 AI 뉴스 · '+new Date().toLocaleDateString("ko-KR")+'</div>'
     +'<!-- 신강인테크 포털 네비게이션 -->
-<div id="portal-nav" style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;gap:8px;align-items:center">
-  <button onclick="history.back()" style="padding:8px 14px;border-radius:8px;background:rgba(13,21,32,0.9);backdrop-filter:blur(12px);border:1px solid rgba(200,216,232,0.2);color:#8fa5bc;font-size:13px;cursor:pointer;font-family:inherit;transition:all 0.15s" onmouseover="this.style.color='#c8d8e8';this.style.borderColor='rgba(200,216,232,0.4)'" onmouseout="this.style.color='#8fa5bc';this.style.borderColor='rgba(200,216,232,0.2)'">← 뒤로</button>
-  <button onclick="location.href='index.html'" style="padding:8px 16px;border-radius:8px;background:rgba(232,184,75,0.12);backdrop-filter:blur(12px);border:1px solid rgba(232,184,75,0.35);color:#e8b84b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s" onmouseover="this.style.background='rgba(232,184,75,0.25)'" onmouseout="this.style.background='rgba(232,184,75,0.12)'">🏠 홈</button>
+<div id="portal-nav" style="position:fixed;top:0;left:0;z-index:99999;display:flex;gap:0;align-items:stretch">
+  <button onclick="history.back()" style="padding:7px 13px;background:rgba(13,21,32,0.88);backdrop-filter:blur(12px);border:none;border-right:1px solid rgba(200,216,232,0.15);border-bottom:1px solid rgba(200,216,232,0.15);color:#8fa5bc;font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s;border-radius:0 0 6px 0" onmouseover="this.style.color='#c8d8e8';this.style.background='rgba(13,21,32,0.97)'" onmouseout="this.style.color='#8fa5bc';this.style.background='rgba(13,21,32,0.88)'">← 뒤로</button>
+  <button onclick="location.href='index.html'" style="padding:7px 14px;background:rgba(232,184,75,0.9);backdrop-filter:blur(12px);border:none;border-bottom:1px solid rgba(232,184,75,0.4);color:#080c12;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;border-radius:0 0 6px 0" onmouseover="this.style.background='rgba(232,184,75,1)'" onmouseout="this.style.background='rgba(232,184,75,0.9)'">🏠 신강인테크</button>
 </div>
 </body></html>');
   w.document.close();setTimeout(function(){w.focus();w.print();},400);showToast("📄 PDF 저장 창이 열렸어요");
