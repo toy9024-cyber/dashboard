@@ -1200,7 +1200,7 @@ async function loadExRate(){
   function matchCurUnit(curUnit, code) {
     const u = (curUnit || "").trim().toUpperCase();
     if (code === "JPY") return u === "JPY(100)" || u === "JPY" || u.startsWith("JPY");
-    if (code === "CNY") return u === "CNY" || u === "CNY(100)" || u.startsWith("CNY");
+    if (code === "CNY") return u === "CNY" || u === "CNH" || u.startsWith("CN");
     return u === code;
   }
 
