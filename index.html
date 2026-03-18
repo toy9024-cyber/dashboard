@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#080c12">
 <title>신강인테크 — 업무 포털</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><polygon points='16,2 30,9 30,23 16,30 2,23 2,9' fill='%23e8b84b'/><text x='16' y='22' text-anchor='middle' font-size='14' font-weight='bold' font-family='sans-serif' fill='%23080c12'>신</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -964,7 +965,28 @@ function calcIncoFull(){
   toast(`${selTerm} (${term.name}) 계산 완료`);
 }
 
-/* ═══ GAS API 연결 ═══ */
+
+/* ═══ 법제처 API 직접 호출 (JSONP) ═══ */
+const LAW_OC = 'toy9024';
+const LAW_BASE = 'https://www.law.go.kr/DRF';
+
+function lawCall(endpoint, params){
+  return new Promise((resolve, reject) => {
+    const cb = '_law_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const qs = new URLSearchParams({
+      OC: LAW_OC, target: 'law', type: 'JSON',
+      ...params, callback: cb
+    }).toString();
+    const s = document.createElement('script');
+    window[cb] = data => { resolve(data); delete window[cb]; s.remove(); };
+    s.onerror = () => { reject(new Error('API 호출 실패')); delete window[cb]; s.remove(); };
+    s.src = `${LAW_BASE}/${endpoint}?${qs}`;
+    document.head.appendChild(s);
+    setTimeout(() => { if(window[cb]){ reject(new Error('타임아웃')); delete window[cb]; s.remove(); }}, 10000);
+  });
+}
+
+// GAS는 즐겨찾기·구독 저장용으로만 유지
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwOHDRrOYbm3eQfTtup3opbF_cyrLM03MsU7yGGfbMrSM1bHgK7iZoZ9s4shMVm3yeb8Q/exec';
 function gasCall(params){
   return new Promise((resolve,reject)=>{
@@ -1007,46 +1029,70 @@ function renderLawCards(list, q=''){
 }
 
 async function doLawSearch(){
-  const q=document.getElementById('lawInp').value.trim();
+  const q = document.getElementById('lawInp').value.trim();
   if(!q){ renderLawCards(LAWS); return; }
-  const el=document.getElementById('lawCardsFull');
-  el.innerHTML=`<div style="padding:24px;text-align:center;color:var(--steel3);font-size:12px">🔍 검색 중...</div>`;
+  const el = document.getElementById('lawCardsFull');
+  el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--steel3);font-size:12px">🔍 검색 중...</div>`;
   try{
-    const res=await gasCall({action:'search',q});
-    if(res.ok && res.laws && res.laws.length){
-      renderLawCards(res.laws, q);
-    } else {
-      // GAS 실패시 Mock 데이터 폴백
-      const mock=LAWS.filter(l=>l.title.includes(q)||l.summary.includes(q)||(l.cats||[]).some(c=>c.includes(q)));
-      renderLawCards(mock, q);
-    }
+    const res = await lawCall('lawSearch.do', { query: q, display: '20', page: '1', sort: 'date' });
+    const raw = res?.LawSearch?.law || [];
+    if(!raw.length){ renderLawCards([], q); return; }
+    const laws = raw.map(l => ({
+      id:       l.법령ID,
+      title:    l.법령명한글,
+      type:     l.법령구분명,
+      ministry: l.소관부처명,
+      lawNo:    l.법령번호,
+      amended:  l.공포일자,
+      summary:  l.법령명한글,
+      cats:     [],
+    }));
+    renderLawCards(laws, q);
   } catch(e){
-    const mock=LAWS.filter(l=>l.title.includes(q)||l.summary.includes(q)||(l.cats||[]).some(c=>c.includes(q)));
+    // 폴백: Mock 데이터
+    const mock = LAWS.filter(l => l.title.includes(q) || l.summary.includes(q) || (l.cats||[]).some(c=>c.includes(q)));
     renderLawCards(mock, q);
-    toast('⚠️ API 연결 중... 기본 데이터로 표시합니다');
+    toast('⚠️ API 연결 실패 — 기본 데이터로 표시합니다');
   }
 }
 
 function qs(q){
-  document.getElementById('lawInp').value=q;
+  document.getElementById('lawInp').value = q;
   doLawSearch();
 }
 
 async function openLaw(id){
-  const box=document.getElementById('lawViewerFull');
+  const box = document.getElementById('lawViewerFull');
   box.classList.add('show');
-  box.innerHTML=`<div style="padding:32px;text-align:center;color:var(--steel3)">📖 법령 불러오는 중...</div>`;
+  box.innerHTML = `<div style="padding:32px;text-align:center;color:var(--steel3)">📖 법령 불러오는 중...</div>`;
   box.scrollIntoView({behavior:'smooth'});
 
-  // Mock 데이터 우선 표시
-  const mock=LAWS.find(l=>l.id===id);
+  // Mock 데이터 먼저 표시
+  const mock = LAWS.find(l => l.id === id);
   if(mock) renderLawViewer(mock);
 
-  // GAS에서 실제 조문 조회
+  // 법제처에서 실제 조문 조회
   try{
-    const res=await gasCall({action:'detail',lawId:id});
-    if(res.ok) renderLawViewerFromGAS(res);
-  } catch(e){ /* mock으로 유지 */ }
+    const res = await lawCall('lawService.do', { ID: id });
+    const law = res?.법령;
+    if(!law) return;
+    const info = law.기본정보 || {};
+    const articles = (law.조문 || []).map(a => ({
+      num:   a.조문번호,
+      title: a.조문제목 || '',
+      body:  a.조문내용 || '',
+      subs:  (a.항 || []).map(h => h.항내용),
+    }));
+    renderLawViewerFromGAS({
+      id,
+      title:    info.법령명한글,
+      ministry: info.소관부처명,
+      lawNo:    info.법령번호,
+      effDate:  info.시행일자,
+      amended:  info.공포일자,
+      articles,
+    });
+  } catch(e){ /* mock 유지 */ }
 }
 
 function renderLawViewer(law){
@@ -1155,26 +1201,33 @@ function renderFavListFull(){
     </div>`).join('');
 }
 async function doAiSearch(){
-  const q=document.getElementById('aiQueryFull').value.trim();
+  const q = document.getElementById('aiQueryFull').value.trim();
   if(!q) return;
   document.getElementById('aiLoader').classList.add('show');
   document.getElementById('aiResultFull').classList.remove('show');
   try{
-    const res=await gasCall({action:'ai_search',q});
+    // 1. 법제처에서 관련 법령 검색
+    const searchRes = await lawCall('lawSearch.do', { query: q, display: '5', page: '1', sort: 'date' });
+    const raw = searchRes?.LawSearch?.law || [];
+    const laws = raw.map(l => ({
+      id: l.법령ID, title: l.법령명한글, type: l.법령구분명, ministry: l.소관부처명
+    }));
+
+    // 2. GAS 통해 Claude AI 해설 요청
+    const aiRes = await gasCall({ action: 'ai_search', q });
     document.getElementById('aiLoader').classList.remove('show');
-    const ai=res.ai||{};
-    const laws=res.laws||[];
-    document.getElementById('aiResultFull').innerHTML=`
+    const ai = aiRes?.ai || {};
+    document.getElementById('aiResultFull').innerHTML = `
       <span style="color:var(--accent);font-weight:600;font-size:11px">📎 AI 분석 결과</span><br><br>
-      ${ai.summary||'관련 법령을 분석했습니다.'}<br><br>
-      ${ai.key_articles&&ai.key_articles.length?'<strong style="color:var(--steel2)">주요 조문:</strong><br>'+ai.key_articles.map(a=>`· ${a}`).join('<br>')+'<br><br>':''}
-      ${laws.length?'<strong style="color:var(--steel2)">관련 법령:</strong><br>'+laws.slice(0,3).map(l=>`<span style="color:var(--law);cursor:pointer" onclick="openLaw('${l.id}')">${l.title}</span>`).join(' · ')+'<br><br>':''}
-      ${ai.caution?`<span style="color:var(--accent);font-size:10px">⚠ ${ai.caution}</span>`:''}`;
+      ${ai.summary || '관련 법령을 분석했습니다.'}<br><br>
+      ${ai.key_articles?.length ? '<strong style="color:var(--steel2)">주요 조문:</strong><br>' + ai.key_articles.map(a=>`· ${a}`).join('<br>') + '<br><br>' : ''}
+      ${laws.length ? '<strong style="color:var(--steel2)">검색된 관련 법령:</strong><br>' + laws.slice(0,4).map(l=>`<span style="color:var(--law);cursor:pointer" onclick="openLaw('${l.id}')">${l.title}</span>`).join('<br>') + '<br><br>' : ''}
+      ${ai.caution ? `<span style="color:var(--accent);font-size:10px">⚠ ${ai.caution}</span>` : ''}`;
     document.getElementById('aiResultFull').classList.add('show');
   } catch(e){
     document.getElementById('aiLoader').classList.remove('show');
-    document.getElementById('aiResultFull').innerHTML=
-      `<span style="color:var(--steel3);font-size:11px">⚠️ AI 검색 연결 실패 — GAS 설정을 확인해주세요</span>`;
+    document.getElementById('aiResultFull').innerHTML =
+      `<span style="color:var(--steel3);font-size:11px">⚠️ 검색 실패 — 잠시 후 다시 시도해주세요</span>`;
     document.getElementById('aiResultFull').classList.add('show');
   }
 }
