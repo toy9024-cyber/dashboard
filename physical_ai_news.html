@@ -1153,7 +1153,12 @@ function printPDF(){
     +'<h1>'+(a.title_ko||a.title_en||"")+'</h1>'+(a.title_en?'<p style="color:#999;font-style:italic">원문: '+a.title_en+'</p>':"")
     +'<hr style="margin:18px 0">'+(a.content_ko||"").split("\n").filter(function(p){return p.trim();}).map(function(p){return"<p>"+p+"</p>";}).join("")
     +'<div class="footer">원문: <a href="'+a.url+'">'+a.url+'</a><br>피지컬 AI 뉴스 · '+new Date().toLocaleDateString("ko-KR")+'</div>'
-    +'</body></html>');
+    +'<!-- 신강인테크 포털 네비게이션 -->
+<div id="portal-nav" style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;gap:8px;align-items:center">
+  <button onclick="history.back()" style="padding:8px 14px;border-radius:8px;background:rgba(13,21,32,0.9);backdrop-filter:blur(12px);border:1px solid rgba(200,216,232,0.2);color:#8fa5bc;font-size:13px;cursor:pointer;font-family:inherit;transition:all 0.15s" onmouseover="this.style.color='#c8d8e8';this.style.borderColor='rgba(200,216,232,0.4)'" onmouseout="this.style.color='#8fa5bc';this.style.borderColor='rgba(200,216,232,0.2)'">← 뒤로</button>
+  <button onclick="location.href='index.html'" style="padding:8px 16px;border-radius:8px;background:rgba(232,184,75,0.12);backdrop-filter:blur(12px);border:1px solid rgba(232,184,75,0.35);color:#e8b84b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s" onmouseover="this.style.background='rgba(232,184,75,0.25)'" onmouseout="this.style.background='rgba(232,184,75,0.12)'">🏠 홈</button>
+</div>
+</body></html>');
   w.document.close();setTimeout(function(){w.focus();w.print();},400);showToast("📄 PDF 저장 창이 열렸어요");
 }
 function shareKakao(){
