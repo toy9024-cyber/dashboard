@@ -697,15 +697,17 @@ header{
   <div class="law-full-layout">
     <div>
       <div class="law-search-row">
-        <input class="law-inp" id="lawInp" placeholder="법령명, 조문 내용 검색... (예: 산업안전보건법, 스태커크레인)" onkeydown="if(event.key==='Enter')doLawSearch()">
+        <input class="law-inp" id="lawInp" placeholder="법령명 검색... (예: 산업안전보건법, 스태커크레인)" onkeydown="if(event.key==='Enter')doLawSearch()">
         <button class="btn-law-search" onclick="doLawSearch()">검색</button>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
         <span style="font-size:11px;color:var(--steel3);align-self:center">빠른검색:</span>
         <span style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--border2);color:var(--steel3);cursor:pointer" onclick="qs('산업안전보건법')" onmouseover="this.style.color='var(--steel)'" onmouseout="this.style.color='var(--steel3)'">산업안전보건법</span>
         <span style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--border2);color:var(--steel3);cursor:pointer" onclick="qs('스태커크레인')" onmouseover="this.style.color='var(--steel)'" onmouseout="this.style.color='var(--steel3)'">스태커크레인</span>
         <span style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--border2);color:var(--steel3);cursor:pointer" onclick="qs('물류시설')" onmouseover="this.style.color='var(--steel)'" onmouseout="this.style.color='var(--steel3)'">물류시설</span>
         <span style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--border2);color:var(--steel3);cursor:pointer" onclick="qs('산업용 로봇')" onmouseover="this.style.color='var(--steel)'" onmouseout="this.style.color='var(--steel3)'">산업용 로봇</span>
+        <span style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--border2);color:var(--steel3);cursor:pointer" onclick="qs('위험기계')" onmouseover="this.style.color='var(--steel)'" onmouseout="this.style.color='var(--steel3)'">위험기계</span>
+        <span style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--border2);color:var(--steel3);cursor:pointer" onclick="qs('건설기계관리')" onmouseover="this.style.color='var(--steel)'" onmouseout="this.style.color='var(--steel3)'">건설기계관리</span>
       </div>
       <div id="lawCardsFull"></div>
       <div class="law-viewer-box" id="lawViewerFull"></div>
@@ -1013,47 +1015,51 @@ function renderLawCards(list, q=''){
   const hl=t=>q?t.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),
     `<mark style="background:rgba(168,85,247,0.2);color:var(--law);border-radius:2px">${q}</mark>`):t;
   document.getElementById('lawCardsFull').innerHTML=list.map(l=>`
-    <div class="law-card-full" onclick="openLaw('${l.id}')">
+    <div class="law-card-full">
       <div class="lcf-head">
         <span class="type-pill ${tc[l.type]||'tp-r'}">${l.type||''}</span>
         <span class="lcf-title">${hl(l.title)}</span>
       </div>
-      <div class="lcf-meta"><span>📁 ${l.ministry||''}</span><span>📋 ${l.lawNo||''}</span><span>🔄 ${l.amended||''}</span></div>
-      <div class="lcf-summary">${hl(l.summary||'')}</div>
+      <div class="lcf-meta">
+        <span>📁 ${l.ministry||''}</span>
+        <span>🔄 ${l.amended?(l.amended.slice(0,4)+'-'+l.amended.slice(4,6)+'-'+l.amended.slice(6,8)):''}  시행</span>
+        <span style="color:${l.status==='현행'?'var(--inco)':'var(--steel3)'}">● ${l.status||''}</span>
+      </div>
       <div class="lcf-actions">
-        <button class="btn-lcf pri" onclick="event.stopPropagation();openLaw('${l.id}')">📖 전문 보기</button>
-        <button class="btn-lcf" onclick="event.stopPropagation();favToggle('${l.id}','${l.title}','${l.type||''}','${l.ministry||''}','${l.amended||''}')">⭐ 즐겨찾기</button>
-        <button class="btn-lcf" onclick="event.stopPropagation();copyLawLink('${l.id}')">🔗 공유</button>
+        <button class="btn-lcf pri" onclick="window.open('https://www.law.go.kr/법령/${encodeURIComponent(l.title)}','_blank')">📖 법제처에서 보기</button>
+        <button class="btn-lcf" onclick="favToggle('${l.id}','${(l.title||'').replace(/'/g,"\\'")}','${l.type||''}','${l.ministry||''}','${l.amended||''}')">⭐ 즐겨찾기</button>
+        <button class="btn-lcf" onclick="copyLawLink('${l.title}')">🔗 공유</button>
       </div>
     </div>`).join('');
 }
 
-async function doLawSearch(){
+// 현재 검색어 저장
+let currentLawQuery = '';
+
+function doLawSearch(){
   const q = document.getElementById('lawInp').value.trim();
   if(!q){ renderLawCards(LAWS); return; }
+  currentLawQuery = q;
+
   const el = document.getElementById('lawCardsFull');
   el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--steel3);font-size:12px">🔍 검색 중...</div>`;
-  try{
-    const res = await lawCall('lawSearch.do', { query: q, display: '20', page: '1', sort: 'date' });
-    const raw = res?.LawSearch?.law || [];
-    if(!raw.length){ renderLawCards([], q); return; }
-    const laws = raw.map(l => ({
-      id:       l.법령ID,
-      title:    l.법령명한글,
-      type:     l.법령구분명,
-      ministry: l.소관부처명,
-      lawNo:    l.법령번호,
-      amended:  l.공포일자,
-      summary:  l.법령명한글,
-      cats:     [],
-    }));
-    renderLawCards(laws, q);
-  } catch(e){
-    // 폴백: Mock 데이터
-    const mock = LAWS.filter(l => l.title.includes(q) || l.summary.includes(q) || (l.cats||[]).some(c=>c.includes(q)));
-    renderLawCards(mock, q);
-    toast('⚠️ API 연결 실패 — 기본 데이터로 표시합니다');
-  }
+
+  gasCall({ action: 'search', q })
+    .then(res => {
+      if(res.ok && res.laws && res.laws.length){
+        renderLawCards(res.laws, q);
+      } else {
+        // 폴백: Mock 데이터
+        const mock = LAWS.filter(l => l.title.includes(q) || l.summary.includes(q) || (l.cats||[]).some(c=>c.includes(q)));
+        renderLawCards(mock.length ? mock : [], q);
+        if(!mock.length) toast('검색 결과가 없습니다');
+      }
+    })
+    .catch(() => {
+      const mock = LAWS.filter(l => l.title.includes(q) || l.summary.includes(q) || (l.cats||[]).some(c=>c.includes(q)));
+      renderLawCards(mock, q);
+      toast('⚠️ 연결 실패 — 기본 데이터로 표시합니다');
+    });
 }
 
 function qs(q){
@@ -1181,8 +1187,8 @@ async function subToggle(id,title,amended){
 }
 
 // 공유 링크 복사
-function copyLawLink(id){
-  const url=`https://www.law.go.kr/법령/${id}`;
+function copyLawLink(title){
+  const url = `https://www.law.go.kr/법령/${encodeURIComponent(title)}`;
   navigator.clipboard?.writeText(url).catch(()=>{});
   toast('🔗 법령 링크가 복사됐습니다');
 }
