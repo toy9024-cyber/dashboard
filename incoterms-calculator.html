@@ -818,7 +818,10 @@ function gvKRW(id, grp){
 
 function calcFor(code){
   const outCur = document.getElementById("currency").value;
-  let s=0, b=0;
+  // 화물 가액 — 모든 조건에서 매도인 부담 (A안)
+  const cargoKRW = gvKRW("cargoVal", "origin");
+  const cargoAmt = fromKRW(cargoKRW, outCur);
+  let s = cargoAmt, b = 0;
   const rows = COSTS.map(([id,name,eng,grp,sCodes]) => {
     const amtKRW = gvKRW(id, grp);
     const amt    = fromKRW(amtKRW, outCur);
@@ -826,6 +829,8 @@ function calcFor(code){
     if(isSeller) s += amt; else b += amt;
     return {id, name, eng, grp, amt, amtKRW, isSeller};
   });
+  // 화물 가액 행을 rows 맨 앞에 추가 (내역표 표시용)
+  rows.unshift({id:'cargoVal', name:'화물 가액', eng:'Cargo Value', grp:'origin', amt:cargoAmt, amtKRW:cargoKRW, isSeller:true});
   return {seller:s, buyer:b, total:s+b, rows};
 }
 
