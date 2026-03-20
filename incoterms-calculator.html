@@ -502,17 +502,17 @@ input[type=date].fx-date:focus{border-color:var(--sell)}
         </div>
         <div class="fg">
           <div class="field"><label title="공장→수출항 내륙 운송비">내륙 운송 — 수출측</label>
-            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_origInland" value="500" min="0"></div></div>
+            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_origInland" value="0" min="0"></div></div>
           <div class="field"><label title="수출항 화물 처리·창고비 THC">수출 터미널 비용 (THC)</label>
-            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_origTHC" value="300" min="0"></div></div>
+            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_origTHC" value="0" min="0"></div></div>
           <div class="field"><label title="수출 포워더·에이전트 수수료">수출 포워딩 수수료</label>
-            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_origFwd" value="200" min="0"></div></div>
+            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_origFwd" value="0" min="0"></div></div>
           <div class="field"><label title="수출 세관 통관비, 관세사 수수료">수출 통관 비용</label>
-            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_expCustoms" value="150" min="0"></div></div>
+            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_expCustoms" value="0" min="0"></div></div>
           <div class="field"><label title="수출국 정부 부과 수출 관세">수출 관세 (Export Duty)</label>
             <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_expDuty" value="0" min="0"></div></div>
           <div class="field"><label title="SGS 등 수출 전 품질 검사·인증비">수출 검사·인증비</label>
-            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_expInspect" value="100" min="0"></div></div>
+            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_expInspect" value="0" min="0"></div></div>
         </div>
       </div>
 
@@ -524,11 +524,11 @@ input[type=date].fx-date:focus{border-color:var(--sell)}
         </div>
         <div class="fg">
           <div class="field"><label title="선적항~양하항 해상/항공 운임">국제 운임 (Freight)</label>
-            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_freight" value="2000" min="0"></div></div>
+            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_freight" value="0" min="0"></div></div>
           <div class="field"><label title="CIP=ICC(A) 의무 / CIF=ICC(C) 의무">화물 보험료 (Insurance)</label>
-            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_insurance" value="300" min="0"></div></div>
+            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_insurance" value="0" min="0"></div></div>
           <div class="field"><label title="BAF(연료), CAF(통화), PSS(성수기) 등">운임 할증료 (Surcharges)</label>
-            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_surcharge" value="400" min="0"></div></div>
+            <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_surcharge" value="0" min="0"></div></div>
           <div class="field"><label title="환적·경유 추가 비용">환적·경유 추가비</label>
             <div class="iw"><span class="isym sym-origin">$</span><input type="number" id="c_tranship" value="0" min="0"></div></div>
         </div>
@@ -542,21 +542,21 @@ input[type=date].fx-date:focus{border-color:var(--sell)}
         </div>
         <div class="fg">
           <div class="field"><label title="목적항 화물 처리비 (양하 THC)">수입 터미널 비용 (THC)</label>
-            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_destTHC" value="350" min="0"></div></div>
+            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_destTHC" value="0" min="0"></div></div>
           <div class="field"><label title="수입 포워더·에이전트 수수료">수입 포워딩 수수료</label>
-            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_destFwd" value="200" min="0"></div></div>
+            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_destFwd" value="0" min="0"></div></div>
           <div class="field"><label title="수입 세관 통관비, 관세사 수수료">수입 통관 비용</label>
-            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_impCustoms" value="250" min="0"></div></div>
+            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_impCustoms" value="0" min="0"></div></div>
           <div class="field"><label title="수입국 정부 부과 관세">수입 관세 (Import Duty)</label>
-            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_impDuty" value="3000" min="0"></div></div>
+            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_impDuty" value="0" min="0"></div></div>
           <div class="field"><label title="부가가치세 / GST / 소비세">수입 부가세·소비세 (VAT)</label>
-            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_impVAT" value="1500" min="0"></div></div>
+            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_impVAT" value="0" min="0"></div></div>
           <div class="field"><label title="크레인·지게차 하역비">하역 비용 (Unloading)</label>
-            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_unload" value="250" min="0"></div></div>
+            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_unload" value="0" min="0"></div></div>
           <div class="field"><label title="목적항→최종 목적지 내륙 운송비">내륙 운송 — 수입측</label>
-            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_destInland" value="600" min="0"></div></div>
+            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_destInland" value="0" min="0"></div></div>
           <div class="field"><label title="창고 보관료, 수입 검사비, 기타 잡비">창고·검사·기타비</label>
-            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_misc" value="200" min="0"></div></div>
+            <div class="iw"><span class="isym sym-dest">$</span><input type="number" id="c_misc" value="0" min="0"></div></div>
         </div>
       </div>
 
@@ -1144,9 +1144,9 @@ function today(){return new Date().toISOString().slice(0,10)}
 
 /* ── Reset ── */
 function resetAll(){
-  const def={c_origInland:500,c_origTHC:300,c_origFwd:200,c_expCustoms:150,c_expDuty:0,c_expInspect:100,
-    c_freight:2000,c_insurance:300,c_surcharge:400,c_tranship:0,c_destTHC:350,c_destFwd:200,
-    c_impCustoms:250,c_impDuty:3000,c_impVAT:1500,c_unload:250,c_destInland:600,c_misc:200};
+  const def={c_origInland:0,c_origTHC:0,c_origFwd:0,c_expCustoms:0,c_expDuty:0,c_expInspect:0,
+    c_freight:0,c_insurance:0,c_surcharge:0,c_tranship:0,c_destTHC:0,c_destFwd:0,
+    c_impCustoms:0,c_impDuty:0,c_impVAT:0,c_unload:0,c_destInland:0,c_misc:0};
   Object.entries(def).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v});
   document.getElementById("cargoVal").value=0;
   document.getElementById("cargoKg").value=0;
