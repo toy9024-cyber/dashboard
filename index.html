@@ -970,13 +970,14 @@ function calcIncoFull(){
 
 /* ═══ 법제처 API 직접 호출 (JSONP) ═══ */
 const LAW_OC = 'toy9024';
-const LAW_BASE = 'https://www.law.go.kr/DRF';
+const LAW_BASE = 'http://www.law.go.kr/DRF';
 
 function lawCall(endpoint, params){
   return new Promise((resolve, reject) => {
     const cb = '_law_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    // target은 params에서 받아서 처리 (law 또는 eflaw)
     const qs = new URLSearchParams({
-      OC: LAW_OC, target: 'law', type: 'JSON',
+      OC: LAW_OC, type: 'JSON',
       ...params, callback: cb
     }).toString();
     const s = document.createElement('script');
@@ -984,7 +985,7 @@ function lawCall(endpoint, params){
     s.onerror = () => { reject(new Error('API 호출 실패')); delete window[cb]; s.remove(); };
     s.src = `${LAW_BASE}/${endpoint}?${qs}`;
     document.head.appendChild(s);
-    setTimeout(() => { if(window[cb]){ reject(new Error('타임아웃')); delete window[cb]; s.remove(); }}, 10000);
+    setTimeout(() => { if(window[cb]){ reject(new Error('타임아웃')); delete window[cb]; s.remove(); }}, 15000);
   });
 }
 
@@ -1026,7 +1027,7 @@ function renderLawCards(list, q=''){
         <span style="color:${l.status==='현행'?'var(--inco)':'var(--steel3)'}">● ${l.status||''}</span>
       </div>
       <div class="lcf-actions">
-        <button class="btn-lcf pri" onclick="window.open('https://www.law.go.kr/법령/${encodeURIComponent(l.title)}','_blank')">📖 법제처에서 보기</button>
+        <button class="btn-lcf pri" onclick="openLaw('${l.id}','${(l.title||'').replace(/'/g,\"'\").replace(/\"/g,\"'\")}','${l.ministry||''}','${l.amended||''}','${l.effDate||''}','${l.lawId||''}')">📖 전문 보기</button>
         <button class="btn-lcf" onclick="favToggle('${l.id}','${(l.title||'').replace(/'/g,"\\'")}','${l.type||''}','${l.ministry||''}','${l.amended||''}')">⭐ 즐겨찾기</button>
         <button class="btn-lcf" onclick="copyLawLink('${l.title}')">🔗 공유</button>
       </div>
@@ -1049,16 +1050,37 @@ function doLawSearch(){
       if(res.ok && res.laws && res.laws.length){
         renderLawCards(res.laws, q);
       } else {
-        // 폴백: Mock 데이터
         const mock = LAWS.filter(l => l.title.includes(q) || l.summary.includes(q) || (l.cats||[]).some(c=>c.includes(q)));
         renderLawCards(mock.length ? mock : [], q);
         if(!mock.length) toast('검색 결과가 없습니다');
       }
     })
     .catch(() => {
-      const mock = LAWS.filter(l => l.title.includes(q) || l.summary.includes(q) || (l.cats||[]).some(c=>c.includes(q)));
-      renderLawCards(mock, q);
-      toast('⚠️ 연결 실패 — 기본 데이터로 표시합니다');
+      // GAS 실패 시 법제처 직접 검색
+      lawCall('lawSearch.do', { target: 'law', query: q, display: '20', page: '1', sort: 'date' })
+        .then(res => {
+          const raw = res?.LawSearch?.law || [];
+          if(!raw.length){ renderLawCards([], q); return; }
+          const laws = raw.map(l => ({
+            id:       l.법령일련번호,   // MST 값
+            lawId:    l.법령ID,
+            title:    l.법령명한글,
+            type:     l.법령구분명,
+            ministry: l.소관부처명,
+            lawNo:    l.공포번호,
+            amended:  l.공포일자,
+            effDate:  l.시행일자,
+            status:   l.현행연혁코드,
+            summary:  l.법령명한글,
+            cats:     [],
+          }));
+          renderLawCards(laws, q);
+        })
+        .catch(() => {
+          const mock = LAWS.filter(l => l.title.includes(q) || l.summary.includes(q) || (l.cats||[]).some(c=>c.includes(q)));
+          renderLawCards(mock, q);
+          toast('⚠️ 연결 실패 — 기본 데이터로 표시합니다');
+        });
     });
 }
 
@@ -1067,38 +1089,73 @@ function qs(q){
   doLawSearch();
 }
 
-async function openLaw(id){
+async function openLaw(mst, title, ministry, amended, effDate, lawId){
   const box = document.getElementById('lawViewerFull');
   box.classList.add('show');
-  box.innerHTML = `<div style="padding:32px;text-align:center;color:var(--steel3)">📖 법령 불러오는 중...</div>`;
+  box.innerHTML = `<div class="lv-hd"><span class="lv-ttl">${title||''}</span><div style="display:flex;gap:4px"><div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div></div></div><div class="lv-content" style="padding:32px;text-align:center;color:var(--steel3)"><div style="font-size:20px;margin-bottom:10px">📖</div>조문 불러오는 중...</div>`;
   box.scrollIntoView({behavior:'smooth'});
 
-  // Mock 데이터 먼저 표시
-  const mock = LAWS.find(l => l.id === id);
-  if(mock) renderLawViewer(mock);
-
-  // 법제처에서 실제 조문 조회
   try{
-    const res = await lawCall('lawService.do', { ID: id });
-    const law = res?.법령;
-    if(!law) return;
-    const info = law.기본정보 || {};
-    const articles = (law.조문 || []).map(a => ({
-      num:   a.조문번호,
-      title: a.조문제목 || '',
-      body:  a.조문내용 || '',
-      subs:  (a.항 || []).map(h => h.항내용),
-    }));
-    renderLawViewerFromGAS({
-      id,
-      title:    info.법령명한글,
-      ministry: info.소관부처명,
-      lawNo:    info.법령번호,
-      effDate:  info.시행일자,
-      amended:  info.공포일자,
-      articles,
-    });
-  } catch(e){ /* mock 유지 */ }
+    const res = await lawCall('lawService.do', { target: 'eflaw', MST: mst });
+    const law = res?.법령 || res;
+    const info = law?.기본정보 || {};
+    const realTitle   = info?.법령명한글  || title  || '';
+    const realMin     = info?.소관부처명  || ministry || '';
+    const realLawNo   = info?.법령번호    || '';
+    const realEffDate = info?.시행일자    || effDate  || '';
+    const realAmended = info?.공포일자    || amended  || '';
+
+    // 조문단위 파싱
+    let joArr = law?.조문단위 || law?.조문 || [];
+    if(!Array.isArray(joArr)) joArr = joArr ? [joArr] : [];
+
+    const articles = joArr.map(a => {
+      const num   = a?.조문번호 || a?.조문단위번호 || '';
+      const ttl   = a?.조문제목 || '';
+      const body  = a?.조문내용 || a?.조문단위내용 || '';
+      let hangArr = a?.항 || [];
+      if(!Array.isArray(hangArr)) hangArr = hangArr ? [hangArr] : [];
+      const subs = hangArr.filter(h=>h).map(h => {
+        const hb = h?.항내용 || h?.내용 || '';
+        let hoArr = h?.호 || [];
+        if(!Array.isArray(hoArr)) hoArr = hoArr ? [hoArr] : [];
+        const hos = hoArr.filter(ho=>ho).map(ho => '&nbsp;&nbsp;&nbsp;&nbsp;' + (ho?.호내용||ho?.내용||''));
+        return hb + (hos.length ? '<br>' + hos.join('<br>') : '');
+      });
+      return { num, title: ttl, body, subs };
+    }).filter(a => a.num || a.body);
+
+    const safeTitle = realTitle.replace(/'/g, "\'");
+    box.innerHTML = `
+      <div class="lv-hd">
+        <span class="lv-ttl">${realTitle}</span>
+        <div style="display:flex;gap:4px">
+          <div class="lv-act-btn" onclick="favToggle('${mst}','${safeTitle}','','${realMin}','${realAmended}')" title="즐겨찾기">⭐</div>
+          <div class="lv-act-btn" onclick="subToggle('${mst}','${safeTitle}','${realAmended}')" title="개정 알림">🔔</div>
+          <div class="lv-act-btn" onclick="copyLawLink('${realTitle}')" title="공유">🔗</div>
+          <div class="lv-act-btn" onclick="window.open('https://www.law.go.kr/법령/'+encodeURIComponent('${realTitle}'),'_blank')" title="법제처에서 보기">↗</div>
+          <div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div>
+        </div>
+      </div>
+      <div class="lv-meta-bar">
+        <span>🏛 ${realMin}</span>
+        ${realLawNo ? `<span>📋 ${realLawNo}</span>` : ''}
+        <span>📅 시행 ${realEffDate}</span>
+        <span>🔄 ${realAmended} 최종개정</span>
+      </div>
+      <div class="lv-content">
+        ${articles.length ? articles.map(a => `
+          <div class="lv-article">
+            <div class="lv-art-num">${a.num}</div>
+            ${a.title ? `<div class="lv-art-title">${a.title}</div>` : ''}
+            <div class="lv-art-body">${a.body}</div>
+            ${a.subs.length ? a.subs.map(s=>`<div style="font-size:11px;color:var(--steel3);padding-left:14px;line-height:1.9;margin-top:3px">${s}</div>`).join('') : ''}
+          </div>`).join('') :
+          `<div style="padding:24px;text-align:center;color:var(--steel3);font-size:12px">조문 데이터를 불러올 수 없습니다.<br><button class="btn-lcf" style="margin-top:10px" onclick="window.open('https://www.law.go.kr/법령/'+encodeURIComponent('${title}'),'_blank')">↗ 법제처에서 직접 보기</button></div>`}
+      </div>`;
+  } catch(e){
+    box.innerHTML = `<div class="lv-hd"><span class="lv-ttl">${title||''}</span><div style="display:flex;gap:4px"><div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div></div></div><div class="lv-content" style="padding:32px;text-align:center"><div style="font-size:20px;margin-bottom:10px">⚠️</div><div style="font-size:12px;color:var(--steel3);margin-bottom:14px">조문 조회 실패</div><button class="btn-lcf pri" onclick="window.open('https://www.law.go.kr/법령/'+encodeURIComponent('${title}'),'_blank')">↗ 법제처에서 직접 보기</button></div>`;
+  }
 }
 
 function renderLawViewer(law){
