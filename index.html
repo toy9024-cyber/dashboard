@@ -1010,28 +1010,38 @@ const tc={법률:'tp-l',대통령령:'tp-d',규칙:'tp-r',고시:'tp-r',훈령:'
 function renderLawCards(list, q=''){
   if(!list||!list.length){
     document.getElementById('lawCardsFull').innerHTML=
-      `<div style="padding:32px;text-align:center;color:var(--steel3);font-size:12px">검색 결과가 없습니다</div>`;
+      '<div style="padding:32px;text-align:center;color:var(--steel3);font-size:12px">검색 결과가 없습니다</div>';
     return;
   }
   const hl=t=>q?t.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),
-    `<mark style="background:rgba(168,85,247,0.2);color:var(--law);border-radius:2px">${q}</mark>`):t;
-  document.getElementById('lawCardsFull').innerHTML=list.map(l=>`
-    <div class="law-card-full">
-      <div class="lcf-head">
-        <span class="type-pill ${tc[l.type]||'tp-r'}">${l.type||''}</span>
-        <span class="lcf-title">${hl(l.title)}</span>
-      </div>
-      <div class="lcf-meta">
-        <span>📁 ${l.ministry||''}</span>
-        <span>🔄 ${l.amended?(l.amended.slice(0,4)+'-'+l.amended.slice(4,6)+'-'+l.amended.slice(6,8)):''}  시행</span>
-        <span style="color:${l.status==='현행'?'var(--inco)':'var(--steel3)'}">● ${l.status||''}</span>
-      </div>
-      <div class="lcf-actions">
-        <button class="btn-lcf pri" onclick="openLaw('${l.id}','${(l.title||'').replace(/'/g,\"'\").replace(/\"/g,\"'\")}','${l.ministry||''}','${l.amended||''}','${l.effDate||''}','${l.lawId||''}')">📖 전문 보기</button>
-        <button class="btn-lcf" onclick="favToggle('${l.id}','${(l.title||'').replace(/'/g,"\\'")}','${l.type||''}','${l.ministry||''}','${l.amended||''}')">⭐ 즐겨찾기</button>
-        <button class="btn-lcf" onclick="copyLawLink('${l.title}')">🔗 공유</button>
-      </div>
-    </div>`).join('');
+    '<mark style="background:rgba(168,85,247,0.2);color:var(--law);border-radius:2px">'+q+'</mark>'):t;
+  document.getElementById('lawCardsFull').innerHTML=list.map(function(l){
+    const safeId    = (l.id||'').replace(/'/g,'');
+    const safeTitle = (l.title||'').replace(/'/g,'').replace(/"/g,'');
+    const safeMin   = (l.ministry||'').replace(/'/g,'');
+    const safeAmd   = (l.amended||'').replace(/'/g,'');
+    const safeEff   = (l.effDate||'').replace(/'/g,'');
+    const safeLid   = (l.lawId||'').replace(/'/g,'');
+    const amdFmt    = l.amended?(l.amended.slice(0,4)+'-'+l.amended.slice(4,6)+'-'+l.amended.slice(6,8)):'';
+    const statusColor = l.status==='현행'?'var(--inco)':'var(--steel3)';
+    const typeClass = tc[l.type]||'tp-r';
+    return '<div class="law-card-full">'
+      +'<div class="lcf-head">'
+      +'<span class="type-pill '+typeClass+'">'+(l.type||'')+'</span>'
+      +'<span class="lcf-title">'+hl(l.title||'')+'</span>'
+      +'</div>'
+      +'<div class="lcf-meta">'
+      +'<span>📁 '+(l.ministry||'')+'</span>'
+      +'<span>🔄 '+amdFmt+' 시행</span>'
+      +'<span style="color:'+statusColor+'">● '+(l.status||'')+'</span>'
+      +'</div>'
+      +'<div class="lcf-actions">'
+      +'<button class="btn-lcf pri" onclick="openLaw(\''+safeId+'\',\''+safeTitle+'\',\''+safeMin+'\',\''+safeAmd+'\',\''+safeEff+'\',\''+safeLid+'\')">📖 전문 보기</button>'
+      +'<button class="btn-lcf" onclick="favToggle(\''+safeId+'\',\''+safeTitle+'\',\''+(l.type||'').replace(/'/g,'')+'\',\''+safeMin+'\',\''+safeAmd+'\')">⭐ 즐겨찾기</button>'
+      +'<button class="btn-lcf" onclick="copyLawLink(\''+safeTitle+'\')">🔗 공유</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
 }
 
 // 현재 검색어 저장
