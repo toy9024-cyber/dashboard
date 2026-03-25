@@ -1102,69 +1102,101 @@ function qs(q){
 async function openLaw(mst, title, ministry, amended, effDate, lawId){
   const box = document.getElementById('lawViewerFull');
   box.classList.add('show');
-  box.innerHTML = `<div class="lv-hd"><span class="lv-ttl">${title||''}</span><div style="display:flex;gap:4px"><div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div></div></div><div class="lv-content" style="padding:32px;text-align:center;color:var(--steel3)"><div style="font-size:20px;margin-bottom:10px">📖</div>조문 불러오는 중...</div>`;
   box.scrollIntoView({behavior:'smooth'});
+
+  // 로딩 표시
+  box.innerHTML = '<div class="lv-hd"><span class="lv-ttl">' + (title||'') + '</span>'
+    + '<div style="display:flex;gap:4px">'
+    + '<div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div>'
+    + '</div></div>'
+    + '<div class="lv-content" style="padding:32px;text-align:center;color:var(--steel3)">📖 조문 불러오는 중...</div>';
 
   try{
     const res = await lawCall('lawService.do', { target: 'eflaw', MST: mst });
-    const law = res?.법령 || res;
-    const info = law?.기본정보 || {};
-    const realTitle   = info?.법령명한글  || title  || '';
-    const realMin     = info?.소관부처명  || ministry || '';
-    const realLawNo   = info?.법령번호    || '';
-    const realEffDate = info?.시행일자    || effDate  || '';
-    const realAmended = info?.공포일자    || amended  || '';
+    const law = res && res['법령'] ? res['법령'] : res;
+    const info = (law && law['기본정보']) ? law['기본정보'] : {};
 
-    // 조문단위 파싱
-    let joArr = law?.조문단위 || law?.조문 || [];
+    const realTitle   = info['법령명한글']  || title   || '';
+    const realMin     = info['소관부처명']   || ministry || '';
+    const realLawNo   = info['법령번호']     || '';
+    const realEffDate = info['시행일자']     || effDate  || '';
+    const realAmended = info['공포일자']     || amended  || '';
+
+    // 조문 파싱
+    let joArr = (law && law['조문단위']) ? law['조문단위']
+              : (law && law['조문'])      ? law['조문']
+              : [];
     if(!Array.isArray(joArr)) joArr = joArr ? [joArr] : [];
 
-    const articles = joArr.map(a => {
-      const num   = a?.조문번호 || a?.조문단위번호 || '';
-      const ttl   = a?.조문제목 || '';
-      const body  = a?.조문내용 || a?.조문단위내용 || '';
-      let hangArr = a?.항 || [];
+    const articles = joArr.map(function(a){
+      if(!a) return null;
+      const num  = a['조문번호'] || a['조문단위번호'] || '';
+      const ttl  = a['조문제목'] || '';
+      const body = a['조문내용'] || a['조문단위내용'] || '';
+      let hangArr = a['항'] || [];
       if(!Array.isArray(hangArr)) hangArr = hangArr ? [hangArr] : [];
-      const subs = hangArr.filter(h=>h).map(h => {
-        const hb = h?.항내용 || h?.내용 || '';
-        let hoArr = h?.호 || [];
+      const subs = hangArr.filter(function(h){ return h; }).map(function(h){
+        const hb = h['항내용'] || h['내용'] || '';
+        let hoArr = h['호'] || [];
         if(!Array.isArray(hoArr)) hoArr = hoArr ? [hoArr] : [];
-        const hos = hoArr.filter(ho=>ho).map(ho => '&nbsp;&nbsp;&nbsp;&nbsp;' + (ho?.호내용||ho?.내용||''));
+        const hos = hoArr.filter(function(ho){ return ho; })
+          .map(function(ho){ return '&nbsp;&nbsp;&nbsp;&nbsp;' + (ho['호내용']||ho['내용']||''); });
         return hb + (hos.length ? '<br>' + hos.join('<br>') : '');
       });
-      return { num, title: ttl, body, subs };
-    }).filter(a => a.num || a.body);
+      return { num: num, title: ttl, body: body, subs: subs };
+    }).filter(function(a){ return a && (a.num || a.body); });
 
-    const safeTitle = realTitle.replace(/'/g, "\'");
-    box.innerHTML = `
-      <div class="lv-hd">
-        <span class="lv-ttl">${realTitle}</span>
-        <div style="display:flex;gap:4px">
-          <div class="lv-act-btn" onclick="favToggle('${mst}','${safeTitle}','','${realMin}','${realAmended}')" title="즐겨찾기">⭐</div>
-          <div class="lv-act-btn" onclick="subToggle('${mst}','${safeTitle}','${realAmended}')" title="개정 알림">🔔</div>
-          <div class="lv-act-btn" onclick="copyLawLink('${realTitle}')" title="공유">🔗</div>
-          <div class="lv-act-btn" onclick="window.open('https://www.law.go.kr/법령/'+encodeURIComponent('${realTitle}'),'_blank')" title="법제처에서 보기">↗</div>
-          <div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div>
-        </div>
-      </div>
-      <div class="lv-meta-bar">
-        <span>🏛 ${realMin}</span>
-        ${realLawNo ? `<span>📋 ${realLawNo}</span>` : ''}
-        <span>📅 시행 ${realEffDate}</span>
-        <span>🔄 ${realAmended} 최종개정</span>
-      </div>
-      <div class="lv-content">
-        ${articles.length ? articles.map(a => `
-          <div class="lv-article">
-            <div class="lv-art-num">${a.num}</div>
-            ${a.title ? `<div class="lv-art-title">${a.title}</div>` : ''}
-            <div class="lv-art-body">${a.body}</div>
-            ${a.subs.length ? a.subs.map(s=>`<div style="font-size:11px;color:var(--steel3);padding-left:14px;line-height:1.9;margin-top:3px">${s}</div>`).join('') : ''}
-          </div>`).join('') :
-          `<div style="padding:24px;text-align:center;color:var(--steel3);font-size:12px">조문 데이터를 불러올 수 없습니다.<br><button class="btn-lcf" style="margin-top:10px" onclick="window.open('https://www.law.go.kr/법령/'+encodeURIComponent('${title}'),'_blank')">↗ 법제처에서 직접 보기</button></div>`}
-      </div>`;
+    // 뷰어 렌더링 — 문자열 연결 방식 (백틱 미사용)
+    const sf = function(s){ return (s||'').replace(/'/g, "\'"); };
+    let html = '<div class="lv-hd">'
+      + '<span class="lv-ttl">' + realTitle + '</span>'
+      + '<div style="display:flex;gap:4px">'
+      + '<div class="lv-act-btn" onclick="favToggle('' + sf(mst) + '','' + sf(realTitle) + '','','' + sf(realMin) + '','' + sf(realAmended) + '')" title="즐겨찾기">⭐</div>'
+      + '<div class="lv-act-btn" onclick="subToggle('' + sf(mst) + '','' + sf(realTitle) + '','' + sf(realAmended) + '')" title="개정 알림">🔔</div>'
+      + '<div class="lv-act-btn" onclick="copyLawLink('' + sf(realTitle) + '')" title="공유">🔗</div>'
+      + '<div class="lv-act-btn" onclick="window.open('https://www.law.go.kr/'+ encodeURIComponent('' + sf(realTitle) + ''),'_blank')" title="법제처에서 보기">↗</div>'
+      + '<div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div>'
+      + '</div></div>'
+      + '<div class="lv-meta-bar">'
+      + '<span>🏛 ' + realMin + '</span>'
+      + (realLawNo ? '<span>📋 ' + realLawNo + '</span>' : '')
+      + '<span>📅 시행 ' + realEffDate + '</span>'
+      + '<span>🔄 ' + realAmended + ' 최종개정</span>'
+      + '</div>'
+      + '<div class="lv-content">';
+
+    if(articles.length){
+      articles.forEach(function(a){
+        html += '<div class="lv-article">'
+          + '<div class="lv-art-num">' + a.num + '</div>'
+          + (a.title ? '<div class="lv-art-title">' + a.title + '</div>' : '')
+          + '<div class="lv-art-body">' + a.body + '</div>';
+        if(a.subs && a.subs.length){
+          a.subs.forEach(function(s){
+            html += '<div style="font-size:11px;color:var(--steel3);padding-left:14px;line-height:1.9;margin-top:3px">' + s + '</div>';
+          });
+        }
+        html += '</div>';
+      });
+    } else {
+      html += '<div style="padding:24px;text-align:center;color:var(--steel3);font-size:12px">'
+        + '조문 데이터를 불러올 수 없습니다.<br>'
+        + '<button class="btn-lcf" style="margin-top:10px" onclick="window.open('https://www.law.go.kr/'+ encodeURIComponent('' + sf(realTitle) + ''),'_blank')">↗ 법제처에서 직접 보기</button>'
+        + '</div>';
+    }
+    html += '</div>';
+    box.innerHTML = html;
+
   } catch(e){
-    box.innerHTML = `<div class="lv-hd"><span class="lv-ttl">${title||''}</span><div style="display:flex;gap:4px"><div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div></div></div><div class="lv-content" style="padding:32px;text-align:center"><div style="font-size:20px;margin-bottom:10px">⚠️</div><div style="font-size:12px;color:var(--steel3);margin-bottom:14px">조문 조회 실패</div><button class="btn-lcf pri" onclick="window.open('https://www.law.go.kr/법령/'+encodeURIComponent('${title}'),'_blank')">↗ 법제처에서 직접 보기</button></div>`;
+    box.innerHTML = '<div class="lv-hd"><span class="lv-ttl">' + (title||'') + '</span>'
+      + '<div style="display:flex;gap:4px">'
+      + '<div class="lv-act-btn" onclick="document.getElementById('lawViewerFull').classList.remove('show')">✕</div>'
+      + '</div></div>'
+      + '<div class="lv-content" style="padding:32px;text-align:center">'
+      + '<div style="font-size:20px;margin-bottom:10px">⚠️</div>'
+      + '<div style="font-size:12px;color:var(--steel3);margin-bottom:14px">조문 조회 실패: ' + e.message + '</div>'
+      + '<button class="btn-lcf pri" onclick="window.open('https://www.law.go.kr/'+ encodeURIComponent('' + (title||'') + ''),'_blank')">↗ 법제처에서 직접 보기</button>'
+      + '</div>';
   }
 }
 
