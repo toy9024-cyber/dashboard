@@ -1343,39 +1343,30 @@ async function doAiSearch(){
       const searchRes = await lawCall('lawSearch.do', { target:'law', query: q, display: '5', page: '1', sort: 'date' });
       const raw = (searchRes && searchRes.LawSearch && searchRes.LawSearch.law) ? searchRes.LawSearch.law : [];
       if(raw.length){
-        lawList = raw.map(function(l){ return '- ' + (l['법령명한글']||'') + ' (' + (l['법령구분명']||'') + ', ' + (l['소관부처명']||'') + ')'; }).join('\n');
+        lawList = raw.map(function(l){
+          return '- ' + (l['법령명한글']||'') + ' (' + (l['법령구분명']||'') + ', ' + (l['소관부처명']||'') + ')';
+        }).join('\n');
       }
     } catch(e2){ /* 법령 검색 실패해도 AI는 진행 */ }
 
-    // 2. Gemini API 직접 호출 (브라우저에서)
-    const GEMINI_KEY = 'GEMINI_API_KEY_HERE'; // GAS 스크립트 속성에서 가져올 수 없으므로 여기에 직접 입력
-    const prompt = 'AS/RS(자동창고), 산업안전, 물류자동화 분야 전문가로서 다음 질문에 한국어로 답해주세요.\n\n질문: ' + q
-      + (lawList ? '\n\n관련 법령:\n' + lawList : '')
-      + '\n\n다음 형식으로 답해주세요:\n[요약] 핵심 답변 3-4문장\n[관련 법령] 주요 법령명과 조문\n[주의사항] 실무 주의사항';
-
-    const geminiRes = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      }
-    );
-    const geminiData = await geminiRes.json();
-    const answer = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '답변을 가져올 수 없습니다.';
-
+    // 2. GAS 통해 Gemini 호출
+    const aiRes = await gasCall({ action: 'gemini', q: q, lawList: lawList });
     document.getElementById('aiLoader').classList.remove('show');
 
-    const resultEl = document.getElementById('aiResultFull');
-    resultEl.innerHTML = '<span style="color:var(--accent);font-weight:600;font-size:11px">✨ Gemini AI 분석</span><br><br>'
-      + answer.replace(/\n/g, '<br>')
-      + (lawList ? '<br><br><span style="color:var(--steel3);font-size:10px">※ 법제처 검색 기반</span>' : '');
-    resultEl.classList.add('show');
+    if(aiRes && aiRes.ok && aiRes.answer){
+      const resultEl = document.getElementById('aiResultFull');
+      resultEl.innerHTML = '<span style="color:var(--accent);font-weight:600;font-size:11px">✨ Gemini AI 분석</span><br><br>'
+        + aiRes.answer.replace(/\n/g, '<br>')
+        + (lawList ? '<br><br><span style="color:var(--steel3);font-size:10px">※ 법제처 검색 기반</span>' : '');
+      resultEl.classList.add('show');
+    } else {
+      throw new Error(aiRes.error || '응답 없음');
+    }
 
   } catch(e){
     document.getElementById('aiLoader').classList.remove('show');
     const resultEl = document.getElementById('aiResultFull');
-    resultEl.innerHTML = '<span style="color:var(--steel3);font-size:11px">⚠️ AI 검색 실패 — API 키를 확인해주세요<br><small>' + e.message + '</small></span>';
+    resultEl.innerHTML = '<span style="color:var(--steel3);font-size:11px">⚠️ AI 검색 실패 — ' + e.message + '</span>';
     resultEl.classList.add('show');
   }
 }
