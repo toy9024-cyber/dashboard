@@ -1124,7 +1124,38 @@ async function openLaw(mst, title, ministry, amended, effDate, lawId){
   box.appendChild(hd); box.appendChild(loading);
 
   try{
-    const res = await lawCall('lawService.do', { target: 'eflaw', MST: mst });
+    // GAS 경유로 전문 조회 (법제처 서버 직접 접근)
+    let res;
+    try {
+      const gasRes = await gasCall({ action: 'detail', mst: mst });
+      if(gasRes && gasRes.ok) {
+        // GAS 응답을 lawCall 응답 형식으로 변환
+        res = {
+          '법령': {
+            '기본정보': {
+              '법령명한글': gasRes.title,
+              '소관부처명': gasRes.ministry,
+              '법령번호':   gasRes.lawNo,
+              '시행일자':   gasRes.effDate,
+              '공포일자':   gasRes.amended,
+            },
+            '조문단위': (gasRes.articles || []).map(function(a){
+              return {
+                '조문번호':      a.num,
+                '조문제목':      a.title,
+                '조문단위내용': a.body,
+                '항': (a.subs || []).map(function(s){ return {'항내용': s}; }),
+              };
+            }),
+          }
+        };
+      } else {
+        throw new Error(gasRes.error || 'GAS 조회 실패');
+      }
+    } catch(gasErr) {
+      // GAS 실패 시 브라우저에서 직접 시도
+      res = await lawCall('lawService.do', { target: 'eflaw', MST: mst });
+    }
     const law = (res && res['법령']) ? res['법령'] : res;
     const info = (law && law['기본정보']) ? law['기본정보'] : {};
 
